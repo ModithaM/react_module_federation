@@ -1,6 +1,6 @@
 import React from "react";
 
-const RemoteApp = React.lazy(() => import("remoteApp/./App"));
+const RemoteApp = React.lazy(() => import("remoteApp/App"));
 
 export default function App() {
   return (

@@ -5,6 +5,10 @@ module.exports = {
     entry: "./src/index.js",
     mode: "development",
 
+    output: {
+        publicPath: "auto",
+    },
+
     devServer: {
         port: 3001,
         historyApiFallback: true,
@@ -42,7 +46,7 @@ module.exports = {
             filename: "remoteEntry.js",
 
             exposes: {
-                "./App": "./src/App.js",
+                "./App": "./src/App",
             },
 
             shared: {
