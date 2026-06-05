@@ -1,62 +1,87 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const ModuleFederationPlugin = require("webpack").container.ModuleFederationPlugin;
+const webpack = require("webpack"); // only add this if you don't have yet
+const { ModuleFederationPlugin } = webpack.container;
+const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
+const deps = require("./package.json").dependencies;
+require("dotenv").config({ path: "./.env" });
 
-module.exports = {
-    entry: "./src/index.js",
-    mode: "development",
+const buildDate = new Date().toLocaleString();
 
+module.exports = (env, argv) => {
+  const isProduction = argv.mode === "production";
+  return {
+    entry: "./src/index.ts",
+    mode: process.env.NODE_ENV || "development",
     devServer: {
-        port: 3000,
-        historyApiFallback: true,
+      port: 3000,
+      open: true,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+      },
     },
-
-    module: {
-        rules: [
-            {
-                test: /\.(js|jsx)$/,
-                exclude: /node_modules/,
-                use: {
-                    loader: "babel-loader",
-                    options: {
-                        presets: [
-                            ["@babel/preset-env", { modules: "cjs" }],
-                            "@babel/preset-react",
-                        ],
-                        cacheDirectory: false,
-                    },
-                },
-            },
-        ],
-    },
-
     resolve: {
-        extensions: [".js", ".jsx"],
+      extensions: [".ts", ".tsx", ".js"],
+    },
+    module: {
+      rules: [
+        {
+          test: /\.(js|jsx|tsx|ts)$/,
+          loader: "babel-loader",
+          exclude: /node_modules/,
+          options: {
+            cacheDirectory: true,
+            babelrc: false,
+            presets: [
+              [
+                "@babel/preset-env",
+                { targets: { browsers: "last 2 versions" } },
+              ],
+              "@babel/preset-typescript",
+              "@babel/preset-react",
+            ],
+            plugins: [
+              "react-hot-loader/babel",
+              ["@babel/plugin-proposal-class-properties", { loose: true }],
+              [
+                "@babel/plugin-proposal-private-property-in-object",
+                { loose: true },
+              ],
+              ["@babel/plugin-proposal-private-methods", { loose: true }],
+            ],
+          },
+        },
+      ],
     },
 
     plugins: [
-        new ModuleFederationPlugin({
-            name: "host",
-
-            remotes: {
-                remoteApp: "remoteApp@http://localhost:3001/remoteEntry.js",
-            },
-
-            shared: {
-                react: {
-                    singleton: true,
-                    requiredVersion: false,
-                    eager: true,
-                },
-                "react-dom": {
-                    singleton: true,
-                    requiredVersion: false,
-                    eager: true,
-                },
-            },
-        }),
-
-        new HtmlWebpackPlugin({
-            template: "./public/index.html",
-        }),
+      new webpack.EnvironmentPlugin({ BUILD_DATE: buildDate }),
+      new webpack.DefinePlugin({
+        "process.env": JSON.stringify(process.env),
+      }),
+      new ModuleFederationPlugin({
+        name: "container",
+        remotes: {
+          app1: "app1@http://localhost:3001/remoteEntry.js",
+        },
+        shared: {
+          ...deps,
+          react: { singleton: true, eager: true, requiredVersion: deps.react },
+          "react-dom": {
+            singleton: true,
+            eager: true,
+            requiredVersion: deps["react-dom"],
+          },
+          "react-router-dom": {
+            singleton: true,
+            eager: true,
+            requiredVersion: deps["react-router-dom"],
+          },
+        },
+      }),
+      new HtmlWebpackPlugin({
+        template: "./public/index.html",
+      }),
+      new ForkTsCheckerWebpackPlugin(),
     ],
+  };
 };
